@@ -56,6 +56,49 @@ for item in data:
                 rows.append({"timestamp": diff_str, "bpm": bpm})
 
 
+# Merge duplicates by averaging BPM
+from collections import OrderedDict
+merged = OrderedDict()
+for row in rows:
+    ts = row["timestamp"]
+    if ts in merged:
+        merged[ts].append(int(row["bpm"]))
+    else:
+        merged[ts] = [int(row["bpm"])]
+duplicate_count = sum(len(bpms) - 1 for bpms in merged.values())
+print(f"Duplicates found: {duplicate_count}")
+rows = [{"timestamp": ts, "bpm": round(sum(bpms) / len(bpms))} for ts, bpms in merged.items()]
+
+
+# Check for missing 5-second intervals
+total_range_seconds = int((end_time - start_time).total_seconds())
+expected_count = total_range_seconds // 5 + 1
+actual_timestamps = set(row["timestamp"] for row in rows)
+actual_count = len(actual_timestamps)
+missing_count = expected_count - actual_count
+missing_pct = (missing_count / expected_count) * 100 if expected_count > 0 else 0
+
+biggest_gap = 0
+biggest_gap_start = ""
+biggest_gap_end = ""
+sorted_seconds = sorted(
+int(ts.split(":")[0]) * 3600 + int(ts.split(":")[1]) * 60 + int(ts.split(":")[2])
+for ts in actual_timestamps
+)
+for i in range(1, len(sorted_seconds)):
+    gap = sorted_seconds[i] - sorted_seconds[i - 1]
+    if gap > biggest_gap:
+        biggest_gap = gap
+        s = sorted_seconds[i - 1]
+        e = sorted_seconds[i]
+        biggest_gap_start = f"{s // 3600:02}:{(s % 3600) // 60:02}:{s % 60:02}"
+        biggest_gap_end = f"{e // 3600:02}:{(e % 3600) // 60:02}:{e % 60:02}"
+
+print(f"Missing datapoints: {missing_count}/{expected_count} ({missing_pct:.1f}%)")
+if biggest_gap > 0:
+    print(f"Biggest gap: {biggest_gap}s (from {biggest_gap_start} to {biggest_gap_end})")
+
+
 # Write to TSV
 with open(OUTPUT_FILE, "w", newline="", encoding="utf-8") as f:
     writer = csv.DictWriter(f, fieldnames=["timestamp", "bpm"], delimiter="\t")
