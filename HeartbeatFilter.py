@@ -171,8 +171,13 @@ for row in rows:
 
 
 # Write to TSV
+include_timestamps = input("Include timestamps in output? (y/n): ").strip().lower()
+if include_timestamps == "y":
+    fields = ["timestamp", "bpm"]
+else:
+    fields = ["bpm"]
 with open(OUTPUT_FILE, "w", newline="", encoding="utf-8") as f:
-    writer = csv.DictWriter(f, fieldnames=["timestamp", "bpm"], delimiter="\t")
+    writer = csv.DictWriter(f, fieldnames=fields, delimiter="\t", extrasaction="ignore")
     writer.writeheader()
     writer.writerows(rows)
 
